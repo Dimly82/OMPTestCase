@@ -21,6 +21,7 @@ class Permissions
  protected:
   void RequestPermission(const int32_t &permissionEnumCode) override {
     try {
+      // Get name of the executable
       std::string exePath =
           "/proc/" +
           std::to_string(
@@ -37,15 +38,15 @@ class Permissions
                 std::to_string(
                     getObject().getCurrentlyProcessedMessage()->getCredsPid()));
       }
+      resolvedPath[len] = '\0';
 
-      resolvedPath[len] = '\0';  // Null-terminate the resolved path
-      std::cout << resolvedPath << std::endl;
-
+      // Connecting to db
       sqlite3 *db;
       if (sqlite3_open(_db_path.c_str(), &db))
         throw sdbus::Error("com.system.permissions.Error",
                            "Error connecting to database");
 
+      // Query to insert requested permission
       std::string sql =
           "INSERT INTO Permissions (executable, permission_code) VALUES (?, "
           "?);";
@@ -58,9 +59,11 @@ class Permissions
             "Error preparing SQL query: " + std::string(sqlite3_errmsg(db)));
       }
 
+      // Insert arguments into the query
       sqlite3_bind_text(stmt, 1, resolvedPath, -1, SQLITE_TRANSIENT);
       sqlite3_bind_int(stmt, 2, permissionEnumCode);
 
+      // Execute the query
       if (sqlite3_step(stmt) != SQLITE_DONE) {
         sqlite3_finalize(stmt);
         throw sdbus::Error(
@@ -80,8 +83,37 @@ class Permissions
   bool CheckApplicationHasPermission(
       const std::string &applicationExecPath,
       const int32_t &permissionEnumCode) override {
-    if (permissionEnumCode == 0) return true;
-    return false;
+    // Connecting to db
+    sqlite3 *db;
+    if (sqlite3_open(_db_path.c_str(), &db))
+      throw sdbus::Error("com.system.permissions.Error",
+                         "Error connecting to database");
+
+    // Query to get rows with matching executable and permission
+    std::string sql =
+        "SELECT 1 FROM Permissions WHERE executable = ? AND permission_code = "
+        "?;";
+
+    sqlite3_stmt *stmt;
+
+    if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
+      throw sdbus::Error(
+          "com.system.permissions.Error",
+          "Error preparing SQL query: " + std::string(sqlite3_errmsg(db)));
+    }
+
+    // Insert arguments into the query
+    sqlite3_bind_text(stmt, 1, applicationExecPath.c_str(), -1,
+                      SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 2, permissionEnumCode);
+
+    // Execute the query. If it returns a row, permission is given
+    bool hasPermission = false;
+    if (sqlite3_step(stmt) == SQLITE_ROW) hasPermission = true;
+
+    sqlite3_finalize(stmt);
+    sqlite3_close(db);
+    return hasPermission;
   }
 
  private:
