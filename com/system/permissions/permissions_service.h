@@ -4,7 +4,7 @@
 #include <climits>
 #include <iostream>
 
-#include "adaptor.h"
+#include "permissions_adaptor.h"
 
 class Permissions
     : public sdbus::AdaptorInterfaces<com::system::permissions_adaptor> {

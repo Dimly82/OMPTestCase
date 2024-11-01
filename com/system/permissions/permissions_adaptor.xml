@@ -3,12 +3,12 @@
 <node name="/com/system/permissions">
     <interface name="com.system.permissions">
         <method name="RequestPermission">
-            <arg type="i" name="permissionEnumCode" direction="in" />
+            <arg type="i" name="permissionEnumCode" direction="in"/>
         </method>
         <method name="CheckApplicationHasPermission">
-            <arg type="b" direction="out" />
-            <arg type="s" name="applicationExecPath" direction="in" />
-            <arg type="i" name="permissionEnumCode" direction="in" />
+            <arg type="b" direction="out"/>
+            <arg type="s" name="applicationExecPath" direction="in"/>
+            <arg type="i" name="permissionEnumCode" direction="in"/>
         </method>
     </interface>
 </node>
