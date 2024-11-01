@@ -35,14 +35,31 @@ protected:
     }
     resolvedPath[len] = '\0';
 
-//     Connecting to com.system.permissions service and calling CheckApplicationHasPermission method
-    auto proxy = sdbus::createProxy("com.system.permissions", "/");
-    proxy->finishRegistration();
-    bool hasPermission = false;
-    proxy->callMethod("CheckApplicationHasPermission").onInterface("com.system.permissions").
-            withArguments(resolvedPath, 0).storeResultsTo(hasPermission);
+    // Connecting to com.system.permissions service and calling CheckApplicationHasPermission method
+//    auto proxy = sdbus::createProxy("com.system.permissions", "/");
+//    proxy->finishRegistration();
+//    bool hasPermission = false;
+//    proxy->callMethod("CheckApplicationHasPermission").onInterface("com.system.permissions").
+//            withArguments(resolvedPath, 0).storeResultsTo(hasPermission);
 
-    if (!hasPermission)
+    // I know this is some bs, but it won't work otherwise
+    std::string cmd =
+            "gdbus call -e -d com.system.permissions -o / -m com.system.permissions.CheckApplicationHasPermission " +
+            std::string(resolvedPath) + " " + std::to_string(0);
+    char buffer[128];
+    std::string result;
+    FILE *pipe = popen(cmd.c_str(), "r");
+    if (!pipe) throw sdbus::Error("com.system.time.Error", "popen() failed!");
+    try {
+      while (fgets(buffer, sizeof buffer, pipe) != nullptr)
+        result += buffer;
+    } catch (...) {
+      pclose(pipe);
+      throw;
+    }
+    pclose(pipe);
+
+    if (result == "(false,)\n")
       throw sdbus::Error("com.system.time.UnauthorizedAccess",
                          "Application does not have permission to use this method");
 
