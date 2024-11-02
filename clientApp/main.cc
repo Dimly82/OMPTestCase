@@ -15,6 +15,7 @@ int main() {
   QDBusReply<quint64> timeReply = bus.call(timeMsg);
   while (!timeReply.isValid()) {
     qDebug() << timeReply.error().message();
+    if (timeReply.error().type() != QDBusError::AccessDenied) return -1;
     if (requestPermission(bus) == -1) return -1;
     timeReply = bus.call(timeMsg);
   }
