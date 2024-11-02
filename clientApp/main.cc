@@ -33,5 +33,6 @@ int requestPermission(QDBusConnection bus) {
     qDebug() << permReply.error().message();
     return -1;
   }
+  qDebug() << "Permission granted";
   return 0;
 }
