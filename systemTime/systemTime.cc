@@ -32,9 +32,10 @@ quint64 Time::GetSystemTime() {
   bool hasPermission = reply.value();
 
   if (!hasPermission) {
-    QDBusMessage errorReply = message().createErrorReply(
-        QDBusError::AccessDenied,
-        "UnauthorizedAccess: Application does not have permission to use this method");
+    QDBusMessage errorReply =
+        message().createErrorReply(QDBusError::AccessDenied,
+                                   "UnauthorizedAccess: Application does not "
+                                   "have permission to use this method");
     connection().send(errorReply);
     return -1;
   }

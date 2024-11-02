@@ -11,6 +11,15 @@ SOURCES += \
         systemPermissions.cc \
         main.cc
 
+# Define a custom target to run clang-format
+clang_format.target = clang-format
+clang_format.commands = clang-format --verbose -i $(SOURCES)
+clang_format.depends = $(SOURCES)
+QMAKE_EXTRA_TARGETS += clang_format
+
+# Optionally, add a target for running clang-format
+QMAKE_POST_LINK += echo "Run 'make clang-format' to format your code"
+
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
