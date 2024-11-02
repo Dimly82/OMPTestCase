@@ -20,20 +20,26 @@ void Permissions::RequestPermission(int permissionEnumCode) {
     ssize_t len = readlink(exePath.toStdString().c_str(), resolvedPath,
                            sizeof(resolvedPath) - 1);
 
-    if (len == -1)
-      throw QDBusError(
+    if (len == -1) {
+      QDBusMessage errorReply = message().createErrorReply(
           QDBusError::InternalError,
           QString("Failed to read executable path for PID %1")
               .arg(connection().interface()->servicePid(message().service())));
+      connection().send(errorReply);
+      return;
+    }
     resolvedPath[len] = '\0';
 
     // Connect to the database
     QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
     db.setDatabaseName(_dbPath);
 
-    if (!db.open())
-      throw QDBusError(QDBusError::InternalError,
-                       "Error connecting to database");
+    if (!db.open()) {
+      QDBusMessage errorReply = message().createErrorReply(
+          QDBusError::InternalError, "Error connecting to the database");
+      connection().send(errorReply);
+      return;
+    }
 
     // Prepare the SQL query
     QSqlQuery query;
@@ -47,16 +53,21 @@ void Permissions::RequestPermission(int permissionEnumCode) {
     // Execute the query
     if (!query.exec()) {
       db.close();
-      throw QDBusError(QDBusError::InternalError,
-                       QString("Error executing SQL query: %1")
-                           .arg(query.lastError().text()));
+      QDBusMessage errorReply = message().createErrorReply(
+          QDBusError::InternalError,
+          QString("Error executing SQL query: ").arg(query.lastError().text()));
+      connection().send(errorReply);
+      return;
     }
 
     db.close();
   } catch (const QDBusError &e) {
     throw;
   } catch (const std::exception &e) {
-    throw QDBusError(QDBusError::InternalError, e.what());
+    QDBusMessage errorReply =
+        message().createErrorReply(QDBusError::InternalError, e.what());
+    connection().send(errorReply);
+    return;
   }
 }
 
@@ -67,8 +78,10 @@ bool Permissions::CheckApplicationHasPermission(QString applicationExecPath,
   db.setDatabaseName(_dbPath);
 
   if (!db.open()) {
-    qCritical() << "Error connecting to database:" << db.lastError().text();
-    throw std::runtime_error("Error connecting to database");
+    QDBusMessage errorReply = message().createErrorReply(
+        QDBusError::InternalError, "Error connecting to the database");
+    connection().send(errorReply);
+    return false;
   }
 
   // Prepare the SQL query to check permissions
@@ -86,9 +99,11 @@ bool Permissions::CheckApplicationHasPermission(QString applicationExecPath,
       hasPermission = true;
     }
   } else {
-    qCritical() << "Error executing SQL query:" << query.lastError().text();
-    throw std::runtime_error("Error executing SQL query: " +
-                             query.lastError().text().toStdString());
+    QDBusMessage errorReply = message().createErrorReply(
+        QDBusError::InternalError,
+        QString("Error executing SQL query: ").arg(query.lastError().text()));
+    connection().send(errorReply);
+    return false;
   }
 
   db.close();
@@ -98,8 +113,12 @@ bool Permissions::CheckApplicationHasPermission(QString applicationExecPath,
 void Permissions::InitDB() {
   QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
   db.setDatabaseName(_dbPath);
-  if (!db.open())
-    throw QDBusError(QDBusError::InternalError, "Error connecting to database");
+  if (!db.open()) {
+    QDBusMessage errorReply = message().createErrorReply(
+        QDBusError::InternalError, "Error connecting to the database");
+    connection().send(errorReply);
+    return;
+  }
 
   QSqlQuery query;
   query.prepare(
@@ -109,9 +128,11 @@ void Permissions::InitDB() {
       "permission_code INTEGER NOT NULL);");
   if (!query.exec()) {
     db.close();
-    throw QDBusError(
+    QDBusMessage errorReply = message().createErrorReply(
         QDBusError::InternalError,
-        QString("Error executing SQL query: %1").arg(query.lastError().text()));
+        QString("Error executing SQL query: ").arg(query.lastError().text()));
+    connection().send(errorReply);
+    return;
   }
   db.close();
 }
